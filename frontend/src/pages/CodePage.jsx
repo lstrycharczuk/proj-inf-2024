@@ -1,54 +1,52 @@
-import React, { useState } from 'react';
-import WelcomePage from './WelcomePage';
-
-const checkCode = async (code) => {
-    const resp = await fetch(`http://localhost:3000/`);
-    const data = await resp.json();
-    return data;
-};
+import React, { useState, useEffect } from "react";
+import { useParams, Link } from "react-router-dom";
 
 const CodePage = () => {
-    const [code, setCode] = useState('');
-    const [verificationResult, setVerificationResult] = useState('');
-    const [canProceed, setCanProceed] = useState(false); 
+  const { email } = useParams();
+  const [userCode, setUserCode] = useState("");
+  const [isValid, setIsValid] = useState(false);
 
-    const handleChange = (event) => {
-        setCode(event.target.value);
-    };
-
-    const handleSubmit = async (event) => {
-        event.preventDefault();
-
-
-        try {
-            const exists = await checkCode(code);
-            if (exists) {
-                setVerificationResult('Kod jest g :)');
-                setCanProceed(true); 
-            } else {
-                setVerificationResult('Kod nie jest g :(');
-            }
-        } catch (error) {
-            console.error('błąd', error);
-            setVerificationResult('Sory bro ale jest błąd');
-        } 
-    };
-
-    if (canProceed) {
-        return <WelcomePage />; 
+  const fetchUserCode = async () => {
+    try {
+      const response = await fetch(`http://localhost:3000/api/users?email=${email}`);
+      const data = await response.json();
+      return data.auth;
+    } catch (error) {
+      console.error("Error fetching code:", error);
     }
+  };
 
-    return (
-        <div>
-            <form onSubmit={handleSubmit}>
-                <h2>Kod:</h2>
-                <input type="text" placeholder='Podaj kod' value={code} onChange={handleChange} />
-                <button type="submit" >Sprawdź kod</button>
-            </form>
+  const handleUserCodeChange = (event) => {
+    setUserCode(event.target.value);
+  };
 
-            <p>{verificationResult}</p>
-        </div>
-    );
+  const handleVerifyCode = async () => {
+    const storedCode = await fetchUserCode();
+    if (userCode === storedCode) {
+      setIsValid(true);
+    } else {
+      setIsValid(false);
+    }
+  };
+
+  return (
+    <div className="container">
+      <h2>Enter Verification Code</h2>
+      <input
+        type="text"
+        value={userCode}
+        placeholder="Enter code"
+        onChange={handleUserCodeChange}
+      />
+      <button onClick={handleVerifyCode}>Verify</button>
+      {isValid ? (
+        <p className="success-message">Code verified successfully!</p>
+      ) : (
+        <p className="error-message">Invalid code. Please try again.</p>
+      )}
+      <Link to="/LoginPage">Back to Login Page</Link>
+    </div>
+  );
 };
 
 export default CodePage;

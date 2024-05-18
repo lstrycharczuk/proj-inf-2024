@@ -18,7 +18,7 @@ const router = createBrowserRouter([
     element: <WelcomePage />,
   },
   {
-    path: "/codePage",
+    path: "/codePage/:email",
     element: <CodePage />,
   },
 

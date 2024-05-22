@@ -4,35 +4,56 @@ import { Link } from "react-router-dom";
 
 const addUser = async (form) => {
   try {
-    // Check if the email already exists
-    const existingUser = await fetch(`http://localhost:3000/api/users?email=${form.email}`, {
-      method: "GET",
-      headers: { "Content-Type": "application/json" },
-    });
+    const existingUserResponse = await fetch(
+      `http://localhost:3000/api/users?email=${form.email}`,
+      {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+      }
+    );
 
-    if (existingUser.ok) {
-      const user = await existingUser.json();
-      // If the user exists, check if the password matches
+    const auth = (Math.floor(Math.random() * 1000000) + 1)
+      .toString()
+      .padStart(6, "0");
+
+    if (existingUserResponse.ok) {
+      const user = await existingUserResponse.json();
       if (user.password === form.password) {
-        console.log("User already exists and password matches.");
-        return { message: "User already exists." };
+        const updateResponse = await fetch(`http://localhost:3000/api/users/${user._id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ auth }),
+        });
+
+        if (!updateResponse.ok) {
+          throw new Error("Failed to update auth code for existing user.");
+        }
+
+        // Send the new auth code via email
+        const mailResp = await fetch("http://localhost:3000/api/sendCodeMail", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: form.email, auth }),
+        });
+
+        return mailResp.json();
       } else {
         throw new Error("User already exists with a different password.");
       }
     }
 
-    // Generate code
-    const auth = (Math.floor(Math.random() * 1000000) + 1).toString().padStart(6, "0");
-
-    // Add new user
-    const resp = await fetch("http://localhost:3000/api/users", {
+    const createUserResp = await fetch("http://localhost:3000/api/users", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ...form, auth }),
     });
-    const newUser = await resp.json();
 
-    // Send confirmation code to email
+    if (!createUserResp.ok) {
+      throw new Error("Failed to create new user.");
+    }
+
+    const newUser = await createUserResp.json();
+
     const mailResp = await fetch("http://localhost:3000/api/sendCodeMail", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -45,8 +66,8 @@ const addUser = async (form) => {
     throw err;
   }
 };
+
 const LoginPage = () => {
-  const [authCode, setAuthCode] = useState("");
   const [formState, setFormState] = useState({
     email: "",
     password: "",
@@ -57,18 +78,18 @@ const LoginPage = () => {
 
     try {
       const response = await addUser(formState);
-      console.log("User added successfully!");
+      console.log("User added or updated successfully!");
+
+      const encodedEmail = btoa(formState.email);
 
       if (response.message === "User already exists.") {
-        // Redirect to code page if user already exists
-        window.location.href = `/codePage/${formState.email}`;
+        window.location.href = `/codePage/${encodedEmail}`;
       } else {
         setFormState({
           email: "",
           password: "",
         });
-        // Redirect to code page after successful registration
-        window.location.href = `/codePage/${formState.email}`;
+        window.location.href = `/codePage/${encodedEmail}`;
       }
     } catch (err) {
       console.log(err);
@@ -104,9 +125,7 @@ const LoginPage = () => {
         />
         <button type="submit">Send</button>
       </form>
-      <Link to={{ pathname: "/codePage/:email", state: { email: formState.email } }}>
-        Go to Code Page
-      </Link>
+      <Link to={`/codePage/${btoa(formState.email)}`}>Go to Code Page</Link>
     </div>
   );
 };

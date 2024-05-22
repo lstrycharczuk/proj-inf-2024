@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 
 const CodePage = () => {
-  const { email } = useParams();
+  const { email: encodedEmail } = useParams();
+  const email = atob(encodedEmail);
   const [userCode, setUserCode] = useState("");
   const [isValid, setIsValid] = useState(false);
+  const navigate = useNavigate();
 
   const fetchUserCode = async () => {
     try {
@@ -24,6 +26,7 @@ const CodePage = () => {
     const storedCode = await fetchUserCode();
     if (userCode === storedCode) {
       setIsValid(true);
+      navigate("/welcomePage");  // Redirect to WelcomePage
     } else {
       setIsValid(false);
     }
@@ -44,7 +47,7 @@ const CodePage = () => {
       ) : (
         <p className="error-message">Invalid code. Please try again.</p>
       )}
-      <Link to="/LoginPage">Back to Login Page</Link>
+      <Link to="/">Back to Login Page</Link>
     </div>
   );
 };

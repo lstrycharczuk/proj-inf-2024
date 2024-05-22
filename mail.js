@@ -1,31 +1,61 @@
 const nodemailer = require('nodemailer');
 require("dotenv").config();
-// Create a transporter with the correct SMTP settings for Gmail
+const express = require("express");
+const mailRouter = express.Router();
+
 const transporter = nodemailer.createTransport({
   service: "gmail",
   host: 'smtp.gmail.com',
   port: 587,
-  secure: false, // true for 465, false for other ports
+  secure: false,
   auth: {
     user: process.env.EMAIL,
     pass: process.env.PASSWORD
   }
 });
+const getCodeAsync = async (email) => {
+    try {
+      const resp = await fetch(`http://localhost:3000/api/users?email=${email}`, {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+      });
+      const response = await resp.json();
+      return response.auth;
+    } catch (err) {
+      console.log(err);
+      throw err; 
+    }
+  };
+  
 
-// Define the email options
-const mailOptions = {
-  from: process.env.EMAIL,
-  to: 'your@email.pl',
-  subject: 'Elo elo 320 kod',
-  text: `Yo bro tu masz swoj sigma rizzler kod ${(Math.floor(Math.random() * 1000000) + 1).toString().padStart(6, '0')}`
-};
-
-// Send the email
-transporter.sendMail(mailOptions, function(error, info) {
-  if (error) {
-    console.log('Error occurred:', error);
-  } else {
+const sendMailAsync = async (mailOptions) => {
+  try {
+    const info = await transporter.sendMail(mailOptions);
     console.log('Email sent:', info.response);
+    return info;
+  } catch (error) {
+    console.log('Error occurred:', error);
+    throw error;
+  }
+}
+
+mailRouter.post("/", async (req, res) => {
+  const { email, auth } = req.body;
+
+  try {
+    const mailOptions = {
+      from: process.env.EMAIL,
+      to: email,
+      subject: 'Elo elo 320 kod',
+      text: `Yo bro tu masz swoj sigma rizzler kod ${auth}`
+    };
+
+    await sendMailAsync(mailOptions);
+    res.json({ message: "Email sent" });
+  } catch (error) {
+    console.error('Error sending email:', error);
+    res.status(500).json({ message: error.message });
   }
 });
 
+module.exports = mailRouter;
